@@ -5647,18 +5647,18 @@ function xPts(qs,total){
   qs.forEach((q,i)=>q.no=i+1); return qs;
 }
 const TANTO=[
-  {id:'law',name:'企業法',min:60,pts:100,spec:'理論 20問',build(){ return xTheory(['law-t'],20); }},
-  {id:'mg',name:'管理会計論',min:60,pts:100,spec:'計算 8〜10問・理論 8〜10問（最大20問）',build(){
+  {id:'law',name:'企業法',min:50,pts:100,spec:'理論 20問',build(){ return xTheory(['law-t'],20); }},
+  {id:'mg',name:'管理会計論',min:75,pts:100,spec:'計算 8〜10問・理論 8〜10問（最大20問）',build(){
     const nc=R.int(8,10), nt=R.int(8,Math.min(10,20-nc)), c1=Math.ceil(nc/2), t1=Math.ceil(nt/2);
     return [...xCalc(['mg-cc'],c1),...xTheory(['mg-ct'],t1),...xCalc(['mg-mc'],nc-c1),...xTheory(['mg-mt'],nt-t1)]; }},
-  {id:'aud',name:'監査論',min:60,pts:100,spec:'理論 20問',build(){ return xTheory(['aud-t'],20); }},
-  {id:'fa',name:'財務会計論',min:120,pts:200,spec:'理論 7〜10問・計算 11〜13問・総合問題 6問',build(){
+  {id:'aud',name:'監査論',min:50,pts:100,spec:'理論 20問',build(){ return xTheory(['aud-t'],20); }},
+  {id:'fa',name:'財務会計論',min:150,pts:200,spec:'理論 7〜10問・計算 11〜13問・総合問題 6問',build(){
     return [...xTheory(['fa-t'],R.int(7,10)),...xCalc(['fa-c'],R.int(11,13)),...xSogo(2)]; }},
 ];
 const RONBUN=[
   [{id:'aud',name:'監査論',w:100},{id:'tax',name:'租税法',w:100}],
   [{id:'mg',name:'会計学（管理会計論）',w:100},{id:'fa',name:'会計学（財務会計論）',w:200}],
-  [{id:'keiei',name:'経営学',w:100},{id:'law',name:'企業法',w:100}],
+  [{id:'law',name:'企業法',w:100},{id:'keiei',name:'経営学',w:100}],
 ];
 const RB_MIN=120;
 function xRonbunBuild(sid){
