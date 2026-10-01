@@ -607,6 +607,30 @@ table.tbl{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-n
 table.tbl th,table.tbl td{border:1px solid var(--line);padding:3px 9px;vertical-align:top}
 table.tbl th{background:var(--chip);font-weight:700}
 .qtext table.tbl,.xq table.tbl{display:block;overflow-x:auto}
+
+.share-steps{margin:0;padding-left:1.3em;display:grid;gap:10px}
+.share-steps li{display:grid;gap:2px}.share-steps span{font-size:13.5px;color:var(--ink2)}
+.tabs2{flex-wrap:wrap}
+.stackc{display:grid;gap:8px;margin-top:8px}.stackc textarea{min-height:90px;font-size:13px}
+
+/* 問題集 */
+.wbch{display:grid;gap:8px}
+.wbc{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+:root[data-skin="night"] .wbc{background:var(--sheet2)}
+.wbc summary{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;cursor:pointer;list-style:none}
+.wbc summary::-webkit-details-marker{display:none}
+.wbc summary b{font-size:15px}
+.wbc summary .xsmall{grid-column:1}
+.wbc summary .meter{grid-column:1;height:4px}
+.wbc summary .btn{grid-row:1/4;grid-column:2}
+.wbsec{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.wbsec .btn{font-size:13px;padding:4px 10px;min-height:0}.wbsec .btn small{margin-left:6px;color:var(--ink3)}
+.oxb{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ch.ox{grid-template-columns:40px 1fr;min-height:56px}
+.ch.ox .ov{font-size:18px;width:30px;height:30px}
+.wbk .nm{display:block}
+@media (max-width:760px){ .nav button{min-width:50px;font-size:10px;padding:4px 3px} }
+.wbask{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--guide);border-radius:10px;background:var(--guide-soft);margin-bottom:6px}.wbask b{font-size:15px}
 </style>
 </head>
 <body>
@@ -9357,12 +9381,12 @@ const Study={
 
   /* 1問ごとの記録（Store.rec から呼ばれる） */
   onRec(id,ok,ms){
-    const D=this.d(); if(!BYID[id]) return;
+    const D=this.d(); if(!BYID[id]&&!String(id).startsWith('wb:')) return;
     const r=D.srs[id]||{lv:0,due:0};
     if(ok){ r.lv=Math.min(SRS_DAYS.length-1,(r.seen?r.lv+1:1)); } else { r.lv=0; }
     r.seen=1; r.due=Date.now()+(ok?SRS_DAYS[r.lv]:1)*DAY-3600e3; D.srs[id]=r;
     const k=this.ymd(); const day=D.days[k]||(D.days[k]={n:0,c:0,ms:0}); day.n++; if(ok) day.c++;
-    if(ms&&ms>1500&&ms<20*60e3){ day.ms+=ms; const f=BYID[id].f; const t=D.tm[f]||(D.tm[f]={n:0,ms:0}); t.n++; t.ms+=ms; }
+    if(ms&&ms>1500&&ms<20*60e3){ day.ms+=ms; const f=BYID[id]?BYID[id].f:'wb'; const t=D.tm[f]||(D.tm[f]={n:0,ms:0}); t.n++; t.ms+=ms; }
   },
   dueItems(){ const D=this.d(), end=this.endOfToday(); return Object.keys(D.srs).filter(id=>BYID[id]&&D.srs[id].due<=end&&BYID[id].kind!=='essay').sort((a,b)=>D.srs[a].due-D.srs[b].due); },
   mastered(id){ const r=this.d().srs[id]; return !!(r&&r.lv>=3); },
@@ -9412,6 +9436,7 @@ const Study={
     h+=`<div class="todo">
       <div class="todo-i"><div><span class="xk">復習</span><b>${t.due}問</b><p>忘れかけた頃に出し直す論点</p></div><button class="btn ${t.due?'pri':''}" data-act="srs-go" ${t.due?'':'disabled'}>${t.due?'今日の復習を始める':'今日の復習は終わり'}</button></div>
       <div class="todo-i"><div><span class="xk">新しい論点・苦手</span><b>${Math.max(0,t.fresh-Math.max(0,td.n-(t.due)))}問</b><p>進みの遅い科目から優先して出題</p></div><button class="btn pri" data-act="plan-go">続きを解く（20問）</button></div>
+      ${(typeof WB!=='undefined'&&WB.dueIds().length)?`<div class="todo-i"><div><span class="xk">問題集の復習</span><b>${WB.dueIds().length}問</b><p>問題集でまちがえた・忘れかけた問題</p></div><button class="btn pri" data-act="wb-due">問題集の復習を始める</button></div>`:''}
       <div class="todo-i"><div><span class="xk">暗記カード</span><b>${cardsDue}枚</b><p>条文・基準の要件と定義</p></div><button class="btn ${cardsDue?'pri':''}" data-act="card-go">カードを覚える</button></div>
     </div>`;
     const prog=this.subjProgress();
@@ -9421,7 +9446,7 @@ const Study={
         return `<div class="prog-r"><span class="nm">${esc(p.name)}</span><div class="pbar2" data-tip="${esc(p.name)}：解いた ${p.seen}/${p.total}論点・定着 ${p.mast}論点"><i style="width:${Math.round(p.cov*100)}%"></i><b style="width:${Math.round(p.mast/p.total*100)}%"></b>${exp!==null?`<u style="left:${Math.round(exp*100)}%"></u>`:''}</div><span class="v tnum">${Math.round(p.cov*100)}%</span><span class="st">${late?'<em class="pill warn">遅れ</em>':''}${weak?'<em class="pill ng">正答率 低</em>':''}${!late&&!weak&&p.seen?'<em class="pill ok">順調</em>':''}</span></div>`; }).join('')}</div></section>`;
     const weakCh=this.weakChapters().slice(0,5);
     if(weakCh.length) h+=`<section class="panel2"><h2 class="h2s">いま弱い章</h2><ul class="weak">${weakCh.map(w=>`<li><span>${esc(w.subj)}</span><b>${esc(w.ch)}</b><span class="tnum">${Math.round(w.rate*100)}%（${w.c}/${w.n}）</span><button class="btn" data-act="ch-go" data-f="${w.f}" data-ch="${esc(w.ch)}">この章を解く</button></li>`).join('')}</ul></section>`;
-    h+=`<section class="quick"><button class="qk" data-act="nav" data-v="tests"><b>模擬試験・過去問・予想問題</b><span>本試験と同じ形式で通し受験</span></button><button class="qk" data-act="nav" data-v="drill"><b>科目別 1問1答</b><span>科目・論点を選んで解く</span></button><button class="qk" data-act="nav" data-v="records"><b>記録</b><span>グラフ・時間・まちがいノート</span></button></section>`;
+    h+=`<section class="quick"><button class="qk" data-act="nav" data-v="tests"><b>模擬試験・過去問・予想問題</b><span>本試験と同じ形式で通し受験</span></button><button class="qk" data-act="nav" data-v="drill"><b>科目別 1問1答</b><span>科目・論点を選んで解く</span></button><button class="qk" data-act="nav" data-v="wb"><b>問題集</b><span>取り込んだ問題集をそのまま解く</span></button><button class="qk" data-act="nav" data-v="records"><b>記録</b><span>グラフ・時間・まちがいノート</span></button></section>`;
     return h;
   },
   vPlan(){
@@ -9441,9 +9466,10 @@ const Study={
   /* ---------- 記録（グラフ／時間／まちがいノート） ---------- */
   tab:'graph',
   vRecords(){
-    let h=`<h1 class="h1s">記録</h1><div class="seg tabs2" role="tablist">${[['graph','成績の推移'],['time','時間配分'],['notes','まちがいノート']].map(([k,n])=>`<button data-act="rec-tab" data-v="${k}" aria-pressed="${this.tab===k}">${n}</button>`).join('')}</div>`;
+    let h=`<h1 class="h1s">記録</h1><div class="seg tabs2" role="tablist">${[['graph','成績の推移'],['time','時間配分'],['notes','まちがいノート'],['share','端末の共有']].map(([k,n])=>`<button data-act="rec-tab" data-v="${k}" aria-pressed="${this.tab===k}">${n}</button>`).join('')}</div>`;
     if(this.tab==='time') return h+this.vTime();
     if(this.tab==='notes') return h+this.vNotes();
+    if(this.tab==='share') return h+this.vShare();
     return h+this.vGraphs();
   },
   vGraphs(){
@@ -9470,6 +9496,17 @@ const Study={
     const ex=(D.exams||[]).filter(e=>e.type==='tanto').slice(-6).reverse();
     if(ex.length) h+=`<section class="panel2"><h2 class="h2s">短答式の模擬試験で使った時間</h2><div class="tw"><table class="d"><tr><th>日付</th>${TANTO.map(t=>`<th class="r">${t.name}</th>`).join('')}</tr>${ex.map(e=>`<tr><td>${fmtD(e.date)}</td>${TANTO.map(t=>{ const s=(e.subs||[]).find(x=>x.id===t.id); return `<td class="r tnum">${s&&s.used?Math.ceil(s.used/60000)+'分':'—'}${s&&s.timeUp?' <em class="pill warn">時間切れ</em>':''}<div class="xsmall">制限 ${t.min}分</div></td>`; }).join('')}</tr>`).join('')}</table></div></section>`;
     return h;
+  },
+  vShare(){
+    const acc=Store.mode==='account'; const D=this.d(); const n=Object.keys(D.stats||{}).length; const t=Store.syncedAt?fmtD(Store.syncedAt):'';
+    return `<section class="panel2"><h2 class="h2s">いまの状態</h2>
+      <p>${acc?`<em class="pill ok">全端末で共有中</em>この画面を claude.ai で開いているので，成績はアカウントに保存され，<b>同じアカウントで開いたスマホ・PC・タブレットで自動的に共有</b>されます。${t?`最後の同期：${t}`:''}`:`<em class="pill warn">この端末だけ</em>成績はこの端末に保存されています。`}</p>
+      <p class="xsmall">共有されるもの：1問1答の成績・復習の予定・学習計画・毎日の記録・まちがいノート・暗記カード・模擬試験と過去問の受験記録（答案を含む）。解答した論点が${n}件あります。</p></section>
+      <section class="panel2"><h2 class="h2s">ほかの端末で続けるには</h2>
+      <ol class="share-steps"><li><b>おすすめ：claude.ai で開く</b><span>どの端末でも，claude.ai にこのアカウントでログインし，このアプリ（同じリンク）を開くだけです。解くたびに数秒で保存され，開いているほかの端末にもすぐ反映されます。2台で同時に解いても，解答数の多い方の記録・両方の受験記録を合わせて残します。</span></li>
+      <li><b>iPhoneのホーム画面版・Macアプリの場合：成績ファイルで引き継ぐ</b><span>claude.ai の外で動くため自動では共有されません。元の端末で「成績ファイルを保存」し，移したい端末で「成績ファイルを読み込む」を押してください。読み込んだ成績は，その端末の成績と合わせて残ります（上書きで消えることはありません）。</span></li></ol>
+      <div class="row"><button class="btn pri" data-act="prog-export">成績ファイルを保存</button><label class="btn">成績ファイルを読み込む<input type="file" id="prog-in" accept="application/json,.json" hidden></label></div>
+      <details class="xsmall"><summary>ファイルが使えない場合：コピーと貼り付けで引き継ぐ</summary><div class="stackc"><div class="row"><button class="btn" data-act="prog-copy">成績をコピー</button><span>コピーした文字をメモやメッセージで移したい端末に送り，下に貼り付けてください。</span></div><textarea id="prog-paste" placeholder="ここにコピーした成績を貼り付け" aria-label="成績の貼り付け"></textarea><div class="row"><button class="btn" data-act="prog-paste">貼り付けた成績を読み込む</button></div></div></details></section>`;
   },
   vNotes(){
     const D=this.d(); const wrong=BANK.filter(i=>D.stats[i.id]&&D.stats[i.id].last===0);
@@ -9533,6 +9570,9 @@ const Study={
     if(a==='srs-go'){ const ids=this.dueItems().slice(0,40); App.start(ids.map(id=>BYID[id]),'今日の復習'); return true; }
     if(a==='plan-go'){ App.start(this.nextSet(20),'今日の続き'); return true; }
     if(a==='ch-go'){ const its=BANK.filter(i=>i.f===b.dataset.f&&i.ch===b.dataset.ch); App.start(R.shuffle(its),b.dataset.ch); return true; }
+    if(a==='prog-export'){ this.exportProgress(); return true; }
+    if(a==='prog-copy'){ const t=Store.exportText(); (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>Exam.toast('成績をコピーしました。'),()=>{ const ta=$('#prog-paste'); if(ta){ ta.value=t; ta.select(); } Exam.toast('下の欄に表示しました。選択してコピーしてください。'); }); return true; }
+    if(a==='prog-paste'){ const ta=$('#prog-paste'); try{ const d=Store.importText((ta&&ta.value)||''); Exam.toast(`成績を読み込みました（${Object.keys(d.stats||{}).length}論点・受験記録${(d.exams||[]).length}件を合わせました）`); App.render(); }catch(err){ Exam.toast(err.message&&!/JSON/.test(err.message)?err.message:'成績の文字を正しく貼り付けてください。'); } return true; }
     if(a==='rec-tab'){ this.tab=b.dataset.v; App.render(); return true; }
     if(a==='notes-go'){ const D=this.d(); App.start(R.shuffle(BANK.filter(i=>D.stats[i.id]&&D.stats[i.id].last===0)),'まちがいノート'); return true; }
     if(a==='note-go'){ const it=BYID[b.dataset.id]; if(it) App.start([it],it.t); return true; }
@@ -9543,6 +9583,12 @@ const Study={
     if(a==='card-quit'){ this.cs=null; App.go('cards'); return true; }
     return false;
   },
+  async exportProgress(){
+    const name=`会計士_成績_${this.ymd()}.json`, data=Store.exportText();
+    try{ if(window.claude&&window.claude.use){ const dl=await claude.use('downloads'); if(dl){ await dl.save({filename:name,data}); Exam.toast('成績ファイルを保存しました。'); return; } } }catch(e){ if(e&&e.code&&e.code!=='unavailable'){ Exam.toast('保存を取りやめました。'); return; } }
+    try{ const url=URL.createObjectURL(new Blob([data],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); Exam.toast('成績ファイルを保存しました。'); }
+    catch(e){ Exam.toast('ファイルを保存できませんでした。'); }
+  },
   onKey(e){
     if(App.view!=='cards'||!this.cs) return false;
     if(e.key===' '&&!this.cs.show){ e.preventDefault(); this.cs.show=true; App.render(); return true; }
@@ -9550,7 +9596,7 @@ const Study={
     return false;
   },
 };
-if(typeof document!=='undefined') document.addEventListener('change',e=>{ const t=e.target; if(t&&t.dataset&&t.dataset.note){ const D=Study.d(); const v=t.value.trim(); if(v) D.notes[t.dataset.note]={m:v,t:Date.now()}; else delete D.notes[t.dataset.note]; Store.save(); Exam.toast('メモを保存しました'); } });
+if(typeof document!=='undefined') document.addEventListener('change',async e=>{ const t=e.target; if(t&&t.id==='prog-in'&&t.files&&t.files[0]){ try{ const d=Store.importText(await t.files[0].text()); Exam.toast(`成績を読み込みました（${Object.keys(d.stats||{}).length}論点・受験記録${(d.exams||[]).length}件を合わせました）`); App.render(); }catch(err){ Exam.toast(err.message||'読み込めませんでした。'); } t.value=''; return; } if(t&&t.dataset&&t.dataset.note){ const D=Study.d(); const v=t.value.trim(); if(v) D.notes[t.dataset.note]={m:v,t:Date.now()}; else delete D.notes[t.dataset.note]; Store.save(); Exam.toast('メモを保存しました'); } });
 
 /* ============ グラフ（SVG・マウスを重ねると値を表示） ============ */
 const Chart={
@@ -9641,6 +9687,190 @@ const ExtraSync={
       Exam.toast(`全員に配信しました：過去問 ${j.pasts.length}件・予想問題 ${j.items.length}問・出題傾向 ${j.trends.length}件`);
     }catch(e){ const c=e&&e.code; throw new Error(c==='invalid_argument'?'配信する権限がないか，データが大きすぎます。':'配信できませんでした。時間をおいてもう一度お試しください。'); }
     finally{ this.busy=false; App.render(); }
+  },
+};
+
+/* ============ 問題集：取り込んだ市販・予備校の問題集を，そのまま解く ============ */
+/* データ：wb/index.json（目次）と wb/<id>.json（各冊）。アプリと同じ場所に置く（claude.ai の公開ファイル／PWAのフォルダ）。
+   項目：{id, type:'ox'|'calc'|'essay'|'mc', ch, sec, no, imp, tag, past, q, a(ox:1/0), ans(calc:数値), unit, dp, choices/correct(mc), model/kw(essay), ex, ref} */
+const WB={
+  index:null, books:{}, loading:{}, book:null, sess:null, filt:{imp:'ABC',only:'all',order:'seq',n:20}, err:'',
+  async init(){
+    try{ const r=await fetch('wb/index.json',{cache:'no-cache'}); if(!r.ok) throw 0; const j=await r.json(); this.index=Array.isArray(j)?j:(j.books||[]); }
+    catch(e){ this.index=[]; }
+    if(App.view==='wb'||App.view==='home') App.render();
+  },
+  meta(id){ return (this.index||[]).find(b=>b.id===id); },
+  async load(id){
+    if(this.books[id]) return this.books[id];
+    if(this.loading[id]) return this.loading[id];
+    const m=this.meta(id); const p=(async()=>{ try{ const r=await fetch((m&&m.file)||`wb/${id}.json`,{cache:'force-cache'}); if(!r.ok) throw new Error('読み込めませんでした'); const j=await r.json(); j.items.forEach((it,i)=>{ it.id=it.id||`wb:${id}:${i+1}`; it.book=id; it.type=it.type||j.kind||'ox'; if(j.ctx&&it.ctx!=null&&j.ctx[it.ctx]) it.q=j.ctx[it.ctx]+it.q; }); this.books[id]=j; return j; } finally{ delete this.loading[id]; } })();
+    this.loading[id]=p; return p;
+  },
+  /* 進み具合（stats の id は wb:<book>:<n>） */
+  prog(id){ const st=Store.data.stats; const pre='wb:'+id+':'; let n=0,c=0,w=0,seen=0; for(const k in st){ if(k.startsWith(pre)){ seen++; n+=st[k].n; c+=st[k].c; if(st[k].last===0) w++; } } return {seen,n,c,wrong:w,rate:n?Math.round(c/n*100):null}; },
+  dueIds(){ const D=Study.d(), end=Study.endOfToday(); return Object.keys(D.srs).filter(id=>id.startsWith('wb:')&&D.srs[id].due<=end); },
+  KIND:{ox:'○×問題',calc:'計算（6択）',essay:'論述',mc:'選択',mixed:'混合'},
+  SUBJ:{fa:'財務会計論',mg:'管理会計論',law:'企業法',aud:'監査論',tax:'租税法',keiei:'経営学'},
+  /* ---------- 一覧 ---------- */
+  vList(){
+    let h=`<h1 class="h1s">問題集</h1><p class="lead">取り込んだ問題集を，1問ずつそのまま解きます。○×問題は○か×を選び，計算問題は似た数値から正しい答えを6つの中から選びます。成績は1問1答と同じく記録され，まちがえた問題は「今日の復習」にも出てきます。</p>`;
+    if(this.index===null) return h+'<div class="empty">問題集の目次を読み込んでいます…</div>';
+    if(!this.index.length) return h+'<div class="empty">問題集はまだありません。</div>';
+    const due=this.dueIds().length; if(due) h+=`<div class="row" style="margin:6px 0 14px"><button class="btn pri" data-act="wb-due">問題集の復習（${due}問）</button></div>`;
+    for(const s of ['fa','mg','law','aud','tax','keiei']){
+      const L=this.index.filter(b=>b.subj===s); if(!L.length) continue;
+      h+=`<section class="subj"><div class="subj-h"><h2>${this.SUBJ[s]}</h2></div><div class="fields">`;
+      for(const b of L){ const p=this.prog(b.id); const pct=b.n?Math.round(p.seen/b.n*100):0;
+        h+=`<div class="field wbk"><div><span class="nm">${esc(b.title)}</span> <span class="tag">${this.KIND[b.kind]||''}</span>${b.src?` <span class="xsmall">${esc(b.src)}</span>`:''}</div>
+          <div class="acts"><button class="btn pri" data-act="wb-open" data-id="${esc(b.id)}">開く</button>${p.wrong?`<button class="btn" data-act="wb-wrong" data-id="${esc(b.id)}">まちがい ${p.wrong}</button>`:''}</div>
+          <div class="st"><span>${b.n}問</span><span>解いた ${p.seen}問（${pct}%）</span><span>正答率 ${p.rate===null?'—':p.rate+'%'}</span></div><div class="meter"><b style="width:${pct}%"></b></div></div>`; }
+      h+='</div></section>';
+    }
+    return h;
+  },
+  /* ---------- 1冊 ---------- */
+  vBook(){
+    const b=this.book; if(!b) return this.vList();
+    const B=this.books[b]; const m=this.meta(b)||{};
+    let h=`<button class="btn ghost" data-act="nav" data-v="wb">← 問題集</button><h1 class="h1s">${esc(m.title||b)}</h1><p class="lead">${this.KIND[m.kind]||''}・${m.n||''}問${m.src?'・'+esc(m.src):''}</p>`;
+    if(!B) return h+`<div class="empty">${this.err||'問題を読み込んでいます…'}</div>`;
+    const f=this.filt; const st=Store.data.stats;
+    const chs=B.chapters&&B.chapters.length?B.chapters:[...new Set(B.items.map(i=>i.ch))];
+    h+=`<div class="opts"><div class="opt"><label>出題数</label>${this.seg('n',[[10,'10問'],[20,'20問'],[50,'50問'],['all','すべて']])}</div>
+      <div class="opt"><label>重要度</label>${this.seg('imp',[['A','Aのみ'],['AB','A＋B'],['ABC','すべて']])}</div>
+      <div class="opt"><label>対象</label>${this.seg('only',[['all','すべて'],['new','未解答'],['wrong','まちがえた'],['past','過去問のみ']])}</div>
+      <div class="opt"><label>出題順</label>${this.seg('order',[['seq','本の順番'],['rand','ランダム']])}</div></div>`;
+    const pick=this.pick(B,null);
+    h+=`<div class="row" style="margin-bottom:18px"><button class="btn pri" data-act="wb-start" ${pick.length?'':'disabled'}>この条件で解く（${pick.length}問）</button><button class="btn" data-act="wb-resume" ${this.lastPos(b)?'':'disabled'}>続きから（${this.lastPos(b)?'問'+this.lastPos(b):'—'}）</button></div>`;
+    h+='<div class="wbch">';
+    for(const ch of chs){ const its=B.items.filter(i=>i.ch===ch); if(!its.length) continue; let n=0,c=0,seen=0,w=0; its.forEach(i=>{ const s=st[i.id]; if(s){ seen++; n+=s.n; c+=s.c; if(s.last===0) w++; } });
+      const secs=[...new Set(its.map(i=>i.sec).filter(Boolean))];
+      h+=`<details class="wbc"><summary><b>${esc(ch)}</b><span class="xsmall">${its.length}問・解いた ${seen}${w?`・まちがい ${w}`:''}${n?`・正答率 ${Math.round(c/n*100)}%`:''}</span><span class="meter"><b style="width:${Math.round(seen/its.length*100)}%"></b></span><button class="btn" data-act="wb-ch" data-ch="${esc(ch)}">解く</button></summary>
+        ${secs.length>1?`<div class="wbsec">${secs.map(sc=>{ const L=its.filter(i=>i.sec===sc); const sn=L.filter(i=>st[i.id]).length; return `<button class="btn" data-act="wb-sec" data-ch="${esc(ch)}" data-sec="${esc(sc)}">${esc(sc)}<small>${sn}/${L.length}</small></button>`; }).join('')}</div>`:''}</details>`; }
+    return h+'</div>';
+  },
+  seg(k,vals){ const f=this.filt; return `<div class="seg" role="group">${vals.map(([v,l])=>`<button data-act="wb-opt" data-k="${k}" data-v="${v}" aria-pressed="${String(f[k])===String(v)}">${l}</button>`).join('')}</div>`; },
+  pick(B,scope){
+    const f=this.filt, st=Store.data.stats;
+    let L=B.items.filter(i=>(!scope||((!scope.ch||i.ch===scope.ch)&&(!scope.sec||i.sec===scope.sec))));
+    if(!scope||scope.useFilt){
+      L=L.filter(i=>!i.imp||f.imp.includes(i.imp)||(f.imp==='ABC'));
+      if(f.only==='new') L=L.filter(i=>!st[i.id]); else if(f.only==='wrong') L=L.filter(i=>st[i.id]&&st[i.id].last===0); else if(f.only==='past') L=L.filter(i=>i.past);
+    }
+    return L;
+  },
+  lastPos(b){ const p=(Store.data.wbpos||{})[b]; return p||0; },
+  /* ---------- 出題 ---------- */
+  start(items,label,from){
+    if(!items.length){ Exam.toast('条件に合う問題がありません。'); return; }
+    this.sess={items,i:0,log:[],label,ans:null,show:false,t0:Date.now(),from:from||App.view,q:null}; this.next(true);
+  },
+  next(first){
+    const s=this.sess; if(!first) s.i++;
+    if(s.i>=s.items.length){ App.go('wbresult'); return; }
+    const it=s.items[s.i]; s.ans=null; s.show=false; s.draft=''; s.grade=null; s.ai=null; s.hist=[]; s.t0=Date.now(); s.t1=0; s.q=this.build(it);
+    Store.data.wbpos=Store.data.wbpos||{}; const no=+(it.id.split(':')[2])||0; if(no) Store.data.wbpos[it.book]=no;
+    App.go('wbrun');
+  },
+  build(it){
+    if(it.type==='calc'&&typeof it.ans==='number'){ const ch=this.choices(it); return {...it,choices:ch.list.map(v=>this.fmt(v,it)),correct:ch.correct}; }
+    if(it.type==='mc') return {...it};
+    return {...it};
+  },
+  /* 似た数値を5つ作って6択にする */
+  choices(it){
+    const v=it.ans, dp=it.dp||0, abs=Math.abs(v)||1;
+    const r=x=>Number(x.toFixed(dp));
+    let step=Math.pow(10,Math.floor(Math.log10(abs))-1); step=Math.max(step,Math.pow(10,-dp));
+    const cand=[]; const push=x=>{ x=r(x); if(isFinite(x)&&x!==v&&!cand.includes(x)&&(v===0||Math.sign(x)===Math.sign(v)||x===0)) cand.push(x); };
+    const ops=[()=>v+step*R.int(1,3),()=>v-step*R.int(1,3),()=>v*(1+R.pick([0.05,0.1,0.2,0.25,0.5])),()=>v*(1-R.pick([0.05,0.1,0.2,0.25,0.5])),()=>v+step*10*R.int(1,2),()=>v-step*10*R.int(1,2),()=>v*2,()=>v/2,()=>v*1.1,()=>v*0.9,()=>this.swap(v,dp)];
+    let g=0; while(cand.length<5&&g<200){ push(R.pick(ops)()); g++; }
+    while(cand.length<5) push(v+step*(cand.length+1)*7);
+    const list=cand.slice(0,5).concat([v]).sort((a,b)=>a-b); return {list,correct:list.indexOf(v)};
+  },
+  swap(v,dp){ const s=String(Math.abs(Math.round(v*Math.pow(10,dp)))); if(s.length<3) return v*1.3; const i=R.int(0,s.length-2); if(s[i]===s[i+1]) return v*0.7; const a=s.split(''); [a[i],a[i+1]]=[a[i+1],a[i]]; return Math.sign(v)*Number(a.join(''))/Math.pow(10,dp); },
+  fmt(v,it){ const dp=it.dp||0; const s=Math.abs(v).toLocaleString('ja-JP',{minimumFractionDigits:dp,maximumFractionDigits:dp}); return (v<0?'△':'')+s+(it.unit||''); },
+  vRun(){
+    const s=this.sess; if(!s||!s.q) return '<div class="empty">問題がありません。<div style="margin-top:12px"><button class="btn" data-act="nav" data-v="wb">戻る</button></div></div>';
+    const q=s.q, m=this.meta(q.book)||{}; const done=s.ans!==null;
+    let h=`<div class="qhead"><button class="btn ghost" data-act="wb-quit">中断</button><span class="prog">${s.i+1} / ${s.items.length}</span><span>${esc(m.title||'')}</span>${q.type!=='essay'?'<span class="qt tnum" id="qt"></span>':''}</div><div class="pbar"><b style="width:${s.i/s.items.length*100}%"></b></div>
+    <article class="qcard"><div class="qgrid"><div class="qmain"><div class="row" style="gap:6px;margin-bottom:6px">${q.imp?`<span class="tag ${q.imp==='A'?'a':q.imp==='C'?'c':''}">重要度${esc(q.imp)}</span>`:''}${q.past?'<span class="tag adv">過去問</span>':''}${q.tag?`<span class="tag">${esc(q.tag)}</span>`:''}<span class="tag">${esc(q.ch||'')}${q.sec?'／'+esc(q.sec):''}</span></div>
+    <div class="qno">${q.type==='ox'?`問題${esc(q.no||'')}　次の記述は正しいか`:esc((q.no||'')+(q.title&&q.type==='essay'?'　'+q.title:''))}</div>
+    <div class="qtext">${q.type!=='ox'?safeHTML(q.q):`<p>${esc(q.q)}</p>`}</div></div><div class="qside">`;
+    if(q.type==='ox'){
+      h+=`<div class="sheet"><div class="sheet-l">解答欄</div><div class="oxb">${[['1','○ 正しい'],['0','× 誤り']].map(([v,l])=>{ let cls='ch ox'; if(done){ if(+v===q.a) cls+=' right'; else if(+v===s.ans) cls+=' wrong'; if(+v===s.ans) cls+=' sel'; } return `<button class="${cls}" data-act="wb-ox" data-v="${v}" ${done?'disabled':''}><span class="ov">${v==='1'?'○':'×'}</span><span class="tx">${l}</span></button>`; }).join('')}</div></div>`;
+      if(done){ const ok=s.ans===q.a; h+=`<div class="verdict ${ok?'ok':'ng'}">${ok?'正解':'不正解'}<span style="font-size:14px;font-family:var(--f-body);font-weight:400;color:var(--ink2)">この記述は ${q.a?'○ 正しい':'× 誤り'}</span></div><div class="ex"><h4>解説</h4>${q.ex?`<p>${esc(q.ex)}</p>`:'<p>記述のとおりで正しい。</p>'}${q.ref?`<p class="xref">根拠：${esc(q.ref)}</p>`:''}</div>`+this.nav(); }
+    } else if(q.type==='calc'||q.type==='mc'){
+      if(q.type==='calc'&&q.title) h+=`<div class="wbask"><span class="xk">求める数値</span><b>${esc(q.title)}</b>${q.unit?`<span class="xsmall">単位：${esc(q.unit)}</span>`:''}</div>`;
+      h+=`<div class="sheet"><div class="sheet-l">解答欄</div><div class="choices">`+q.choices.map((c,i)=>{ let cls='ch'; if(done){ if(i===q.correct)cls+=' right'; else if(i===s.ans)cls+=' wrong'; if(i===s.ans)cls+=' sel'; } return `<button class="${cls}" data-act="wb-ans" data-i="${i}" ${done?'disabled':''}><span class="ov">${i+1}</span><span class="tx">${esc(c)}</span></button>`; }).join('')+'</div></div>';
+      if(done){ const ok=s.ans===q.correct; h+=`<div class="verdict ${ok?'ok':'ng'}">${ok?'正解':'不正解'}<span style="font-size:14px;font-family:var(--f-body);font-weight:400;color:var(--ink2)">正答は ${ORD[q.correct]}${q.type==='calc'?'　'+esc(this.fmt(q.ans,q)):''}</span></div><div class="ex"><h4>解説</h4>${q.ex?safeHTML(q.ex):'<p>解説はありません。</p>'}${q.ref?`<p class="xref">${esc(q.ref)}</p>`:''}</div>`+this.nav(); }
+    } else {
+      h+=`<div class="sheet"><div class="sheet-l">解答欄${q.limit?`（${esc(q.limit)}）`:''}</div><textarea id="essay" aria-label="解答欄" placeholder="ここに解答を書く" ${done?'':''}>${esc(s.draft||'')}</textarea></div>`;
+      if(!done) h+=`<div class="qnav"><span></span><button class="btn pri" data-act="wb-reveal">模範解答を見る</button></div>`;
+      else {
+        const txt=s.draft||''; const kws=(q.kw||[]); const hits=kws.map(k=>({k,hit:txt.replace(/[,，\s]/g,'').includes(k.replace(/[,，\s]/g,''))}));
+        h+=`<div class="ex"><h4>模範解答</h4><div class="model">${esc(q.model||'')}</div>${kws.length?`<h4 style="margin-top:10px">キーワード（${hits.filter(x=>x.hit).length}/${hits.length}）</h4><div class="kw">${hits.map(x=>`<span class="${x.hit?'hit':''}">${esc(x.k)}</span>`).join('')}</div>`:''}</div>`;
+        if(q.ex) h+=`<div class="ex"><h4>解説</h4>${safeHTML(q.ex)}</div>`;
+        if(s.ai) h+=App.essayBox(s.ai,'AI採点');
+        if(s.ans==='open'){ if(AI.state==='ready'&&!s.ai) h+=`<div class="qnav"><span></span><button class="btn pri" data-act="wb-aigrade" ${s.aiBusy?'disabled':''}>${s.aiBusy?'採点中…':'AIで採点する'}</button></div>`;
+          h+=`<div class="qnav"><span>${s.ai?'採点を確定：':'自己採点：'}</span><div class="row"><button class="btn" data-act="wb-grade" data-v="1">○ 書けた</button><button class="btn" data-act="wb-grade" data-v="0.5">△ 一部</button><button class="btn" data-act="wb-grade" data-v="0">× 書けない</button></div></div>`; }
+        else h+=this.nav();
+      }
+    }
+    h+=`<p class="kbd-hint">${q.type==='ox'?'<kbd>1</kbd> ○　<kbd>2</kbd> ×　':q.type!=='essay'?'<kbd>1</kbd>〜<kbd>6</kbd> 解答　':''}<kbd>Enter</kbd> 次へ　<kbd>Esc</kbd> 入力欄から抜ける</p>`;
+    return h+'</div></div></article>';
+  },
+  nav(){ const s=this.sess; return App.memoBox(s.q)+`<div class="qnav"><span></span><button class="btn pri" data-act="wb-next">${s.i+1<s.items.length?'次の問題へ':'結果を見る'}</button></div>`; },
+  answer(v){
+    const s=this.sess, q=s.q; if(s.ans!==null) return; s.t1=Date.now();
+    let ok; if(q.type==='ox'){ s.ans=+v; ok=s.ans===q.a; } else { s.ans=+v; ok=s.ans===q.correct; }
+    Store.rec(q.id,ok,s.t1-s.t0); s.log.push({id:q.id,v:ok?1:0}); App.render();
+  },
+  async aiGrade(){
+    const s=this.sess, q=s.q; if(s.aiBusy) return; s.aiBusy=true; App.render();
+    const t=$('#essay'); if(t) s.draft=t.value;
+    try{ const r=await AI.json(essayPrompt({q:plain(safeHTML(q.q)),model:q.model||'',kw:q.kw||[]},s.draft,'')); if(this.sess!==s) return; s.ai=App.normEssay(r); }
+    catch(e){ if(this.sess===s) s.ai={grade:'—',feedback:'AI採点を利用できませんでした。模範解答と見比べて自己採点してください。'}; }
+    s.aiBusy=false; if(this.sess===s) App.render();
+  },
+  vResult(){
+    const s=this.sess; if(!s) return this.vList(); const tot=s.log.length, pts=s.log.reduce((a,b)=>a+b.v,0); const wrong=[...new Set(s.log.filter(x=>x.v<1).map(x=>x.id))];
+    const byId={}; s.items.forEach(i=>byId[i.id]=i);
+    let h=`<h2>${esc(s.label)}　結果</h2><div class="score"><b class="tnum">${Math.round(pts*10)/10}</b><span>/ ${tot} 問正解</span></div><ul class="rlist">`+s.log.map(x=>{ const it=byId[x.id]||{}; return `<li><span class="${x.v>=1?'o':'x'}">${x.v>=1?'○':x.v>0?'△':'×'}</span><span>${esc((it.ch||'')+'　'+(it.type==='ox'?(it.q||'').slice(0,40)+'…':(it.title||'問'+(it.no||''))))}</span><span class="t">${esc(it.sec||'')}</span></li>`; }).join('')+'</ul>';
+    h+=`<div class="row">${wrong.length?`<button class="btn pri" data-act="wb-retry">まちがえた${wrong.length}問をもう一度</button>`:''}<button class="btn" data-act="wb-back">${s.from==='home'?'今日の学習へ':'問題集へ'}</button></div>`; this._wrong=wrong.map(id=>byId[id]).filter(Boolean); return h;
+  },
+  /* ---------- 操作 ---------- */
+  async open(id){ this.book=id; this.err=''; App.go('wbbook'); try{ await this.load(id); }catch(e){ this.err=e.message||'読み込めませんでした。'; } if(App.view==='wbbook'&&this.book===id) App.render(); },
+  async runDue(){ const ids=this.dueIds().slice(0,40); const books=[...new Set(ids.map(i=>i.split(':')[1]))]; Exam.toast('問題を読み込んでいます…'); try{ await Promise.all(books.map(b=>this.load(b))); }catch(e){} const items=ids.map(id=>{ const b=this.books[id.split(':')[1]]; return b&&b.items.find(i=>i.id===id); }).filter(Boolean); this.start(items,'問題集の復習','home'); },
+  onClick(a,b){
+    if(a==='wb-open'){ this.open(b.dataset.id); return true; }
+    if(a==='wb-wrong'){ const id=b.dataset.id; (async()=>{ try{ const B=await this.load(id); const st=Store.data.stats; this.book=id; this.start(B.items.filter(i=>st[i.id]&&st[i.id].last===0),'まちがえた問題','wb'); }catch(e){ Exam.toast('読み込めませんでした。'); } })(); return true; }
+    if(a==='wb-due'){ this.runDue(); return true; }
+    if(a==='wb-opt'){ let v=b.dataset.v; if(/^\d+$/.test(v)) v=+v; this.filt[b.dataset.k]=v; App.render(); return true; }
+    if(a==='wb-start'||a==='wb-ch'||a==='wb-sec'||a==='wb-resume'){ const B=this.books[this.book]; if(!B) return true; const m=this.meta(this.book)||{};
+      let L; if(a==='wb-start') L=this.pick(B,null); else if(a==='wb-resume'){ const no=this.lastPos(this.book); const k=B.items.findIndex(i=>+(i.id.split(':')[2])===no); L=B.items.slice(Math.max(0,k)); } else L=this.pick(B,{ch:b.dataset.ch,sec:b.dataset.sec});
+      if(this.filt.order==='rand'&&a!=='wb-resume') L=R.shuffle(L); const n=this.filt.n==='all'?L.length:+this.filt.n; L=L.slice(0,n);
+      this.start(L,m.title||'問題集','wbbook'); return true; }
+    if(a==='wb-ox'){ this.answer(b.dataset.v); return true; }
+    if(a==='wb-ans'){ this.answer(b.dataset.i); return true; }
+    if(a==='wb-reveal'){ const t=$('#essay'); this.sess.draft=t?t.value:''; this.sess.ans='open'; App.render(); return true; }
+    if(a==='wb-aigrade'){ this.aiGrade(); return true; }
+    if(a==='wb-grade'){ const s=this.sess; const v=+b.dataset.v; Store.rec(s.q.id,v>=1,0); s.log.push({id:s.q.id,v}); s.ans='done'; App.render(); return true; }
+    if(a==='wb-next'){ this.next(); return true; }
+    if(a==='wb-quit'){ const s=this.sess; clearInterval(App._tk); App.go(s&&s.from&&s.from!=='wbrun'?s.from:'wb'); return true; }
+    if(a==='wb-retry'){ this.start(R.shuffle(this._wrong||[]),'まちがえた問題','wb'); return true; }
+    if(a==='wb-back'){ const s=this.sess; App.go(s&&s.from==='home'?'home':(this.book?'wbbook':'wb')); return true; }
+    return false;
+  },
+  onKey(e){
+    if(App.view!=='wbrun'||!this.sess||!this.sess.q) return false; const s=this.sess, q=s.q;
+    if(e.target.tagName==='TEXTAREA'){ if(e.key==='Escape'){ e.target.blur(); e.preventDefault(); return true; } return false; }
+    if(e.metaKey||e.ctrlKey||e.altKey) return false;
+    if(q.type==='ox'&&s.ans===null&&(e.key==='1'||e.key==='2')){ this.answer(e.key==='1'?1:0); return true; }
+    if((q.type==='calc'||q.type==='mc')&&s.ans===null&&/^[1-6]$/.test(e.key)){ if(+e.key-1<q.choices.length) this.answer(+e.key-1); return true; }
+    if(e.key==='Enter'&&s.ans!==null&&s.ans!=='open'){ e.preventDefault(); this.next(); return true; }
+    return false;
   },
 };
 
@@ -10384,22 +10614,59 @@ const Store={
   data:{v:1,stats:{},exams:[],ronbun:null,opts:{count:10,rank:'ABC',adv:true,order:'random',skin:'sheet',rv2:true},updated:0}, doc:null, timer:null, mode:'local',
   load(){ try{ const s=localStorage.getItem(KEY); if(s){ const d=JSON.parse(s); if(d&&d.stats){ if(d.opts&&!d.opts.rv2){ d.opts.rank='ABC'; d.opts.rv2=true; } this.data={...this.data,...d,opts:{...this.data.opts,...(d.opts||{})}}; } } }catch(e){} this.migrate(); },
   migrate(){ const o=this.data.opts||(this.data.opts={}); if(!o.rv2){ o.rank='ABC'; o.rv2=true; } if(!['A','AB','ABC'].includes(o.rank)) o.rank='ABC'; },
+  /* ---- アカウント（claude.ai）で全端末の成績を共有 ----
+     data/users/<id>/progmeta（目次）と prog_0…（本体を分割）。開いている間は他の端末の更新も受け取り，両方の記録を合わせる */
+  CH:60000, dev:null, lastSync:0, pushing:false,
+  devId(){ if(this.dev) return this.dev; try{ this.dev=localStorage.getItem('cpa-dev'); if(!this.dev){ this.dev='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); localStorage.setItem('cpa-dev',this.dev); } }catch(e){ this.dev='d'+Date.now(); } return this.dev; },
   async connect(){
     try{
       if(!window.claude||!window.claude.use) return;
       const [user,db]=await Promise.all([claude.use('user'),claude.use('db')]);
       if(!user||!db) return; const id=await user.id(); if(!id) return;
       this.db=db; this.uid=id; this.doc=db.doc('data/users/'+id+'/progress');
-      const snap=await this.doc.get();
-      if(snap.exists){ const d=snap.data(); if(d && (d.updated||0)>(this.data.updated||0)){ this.data={...this.data,...JSON.parse(JSON.stringify(d))}; this.migrate(); try{localStorage.setItem(KEY,JSON.stringify(this.data));}catch(e){} if(App.view==='home') App.render(); } }
+      const remote=await this.pull();
+      if(remote) this.absorb(remote);
       this.mode='account'; App.syncLabel();
+      await this.push();
+      db.doc(`data/users/${id}/progmeta`).onSnapshot(async snap=>{ if(!snap||!snap.exists) return; const m=snap.data(); if(!m||m.dev===this.devId()||(m.updated||0)<=(this.lastSync||0)) return; const r=await this.pull(m); if(r){ this.absorb(r,true); } },()=>{});
     }catch(e){ this.doc=null; }
+  },
+  async pull(meta){
+    try{
+      const base=`data/users/${this.uid}/`;
+      if(!meta){ const ms=await this.db.doc(base+'progmeta').get(); meta=ms.exists?ms.data():null; }
+      if(meta&&meta.n){ let txt=''; for(let i=0;i<meta.n;i++){ const c=await this.db.doc(base+'prog_'+i).get(); if(!c.exists) return null; const d=c.data(); if(d.v!==meta.updated) return null; txt+=String(d.s||''); } return JSON.parse(txt); }
+      const old=await this.doc.get(); return old.exists?JSON.parse(JSON.stringify(old.data())):null;   // 以前の保存形式
+    }catch(e){ return null; }
+  },
+  /* 他の端末の記録を合わせる（解答数の多い方・新しい方を採用し，受験記録などは両方残す） */
+  absorb(r,live){
+    if(!r||typeof r!=='object') return;
+    this.data=mergeProgress(this.data,r); this.migrate(); this.lastSync=Math.max(this.lastSync,r.updated||0);
+    try{ localStorage.setItem(KEY,JSON.stringify(this.data)); }catch(e){}
+    if(live){ this.syncedAt=Date.now(); App.syncLabel(); if(!['quiz','exam','cards'].includes(App.view)) App.render(); }
+    else if(App.view==='home') App.render();
+  },
+  async push(){
+    if(!this.db||!this.uid) return; if(this.pushing){ this.again=true; return; } this.pushing=true;
+    try{
+      const base=`data/users/${this.uid}/`; const v=this.data.updated||Date.now();
+      const txt=JSON.stringify(this.data); const n=Math.max(1,Math.ceil(txt.length/this.CH));
+      for(let i=0;i<n;i++) await this.db.doc(base+'prog_'+i).set({v,s:txt.slice(i*this.CH,(i+1)*this.CH)});
+      await this.db.doc(base+'progmeta').set({updated:v,n,dev:this.devId(),at:Date.now()});
+      this.lastSync=Math.max(this.lastSync,v); this.syncedAt=Date.now(); this.mode='account';
+    }catch(e){ this.mode='local'; }
+    this.pushing=false; App.syncLabel();
+    if(this.again){ this.again=false; this.push(); }
   },
   save(){
     this.data.updated=Date.now();
     try{ localStorage.setItem(KEY,JSON.stringify(this.data)); }catch(e){}
-    if(this.doc){ clearTimeout(this.timer); this.timer=setTimeout(()=>{ this.doc.set(JSON.parse(JSON.stringify(this.data))).catch(()=>{ this.mode='local'; App.syncLabel(); }); },1500); }
+    if(this.db&&this.uid){ clearTimeout(this.timer); this.timer=setTimeout(()=>this.push(),1500); }
   },
+  /* 成績ファイル（iPhoneのホーム画面版・Macアプリなど，claude.ai 以外との引き継ぎ用） */
+  exportText(){ return JSON.stringify({type:'cpa-progress',v:1,exported:new Date().toISOString(),data:this.data}); },
+  importText(txt){ const j=JSON.parse(txt); const d=j&&j.type==='cpa-progress'?j.data:(j&&j.stats?j:null); if(!d||!d.stats) throw new Error('成績ファイルではありません。'); this.data=mergeProgress(this.data,d); this.migrate(); this.save(); return d; },
   rec(id,ok,ms){ const s=this.data.stats[id]||{n:0,c:0,last:null,t:0}; s.n++; if(ok)s.c++; s.last=ok?1:0; s.t=Date.now(); this.data.stats[id]=s; try{ if(typeof Study!=='undefined') Study.onRec(id,ok,ms); }catch(e){} this.save(); },
 };
 
@@ -10453,9 +10720,29 @@ function pickItems(pool,count,order){
   return out;
 }
 
+function mergeProgress(a,b){
+  a=JSON.parse(JSON.stringify(a||{})); b=JSON.parse(JSON.stringify(b||{}));
+  const newer=(b.updated||0)>(a.updated||0)?b:a, older=newer===a?b:a;
+  const out={...older,...newer};
+  const byKey=(x,y,pick)=>{ const o={...(x||{})}; for(const k in (y||{})){ o[k]= k in o?pick(o[k],y[k]):y[k]; } return o; };
+  out.stats=byKey(a.stats,b.stats,(p,q)=>((q.n||0)>(p.n||0)||((q.n||0)===(p.n||0)&&(q.t||0)>(p.t||0)))?q:p);
+  out.srs=byKey(a.srs,b.srs,(p,q)=>(q.due||0)>(p.due||0)?q:p);
+  out.days=byKey(a.days,b.days,(p,q)=>(q.n||0)>(p.n||0)?q:p);
+  out.tm=byKey(a.tm,b.tm,(p,q)=>(q.n||0)>(p.n||0)?q:p);
+  out.notes=byKey(a.notes,b.notes,(p,q)=>(q.t||0)>(p.t||0)?q:p);
+  out.cards=byKey(a.cards,b.cards,(p,q)=>(q.due||0)>(p.due||0)?q:p);
+  const uni=(x,y)=>{ const m=new Map(); [...(x||[]),...(y||[])].forEach(e=>{ if(e&&e.id!=null&&!m.has(e.id)) m.set(e.id,e); else if(e&&e.id==null) m.set(Math.random(),e); }); return [...m.values()]; };
+  out.exams=uni(a.exams,b.exams).sort((p,q)=>(p.date||0)-(q.date||0));
+  out.preds=uni(a.preds,b.preds);
+  const done=r=>r&&r.done?r.done.filter(Boolean).length:-1;
+  out.ronbun=done(b.ronbun)>done(a.ronbun)?b.ronbun:done(a.ronbun)>done(b.ronbun)?a.ronbun:newer.ronbun;
+  out.opts={...(older.opts||{}),...(newer.opts||{})}; out.plan={...(older.plan||{}),...(newer.plan||{})};
+  out.updated=Math.max(a.updated||0,b.updated||0);
+  return out;
+}
 const App={
   view:'home', sess:null, pickField:null, picked:new Set(),
-  syncLabel(){ const el=$('#sync'); if(el){ el.textContent= Store.mode==='account'?'成績はアカウントに保存':'成績はこの端末に保存'; } },
+  syncLabel(){ const el=$('#sync'); if(el){ const t=Store.syncedAt?new Date(Store.syncedAt):null; el.textContent= Store.mode==='account'?`成績は全端末で共有${t?`（${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')} 同期）`:''}`:'成績はこの端末に保存'; el.title=Store.mode==='account'?'claude.ai で同じアカウントで開いた端末どうしで，成績が自動で共有されます':'この端末だけに保存しています。「記録 → 端末の引き継ぎ」で他の端末に移せます'; } },
   go(v){ this.view=v; this.render(); window.scrollTo(0,0); },
   render(){
     try{ document.documentElement.dataset.skin='night'; }catch(e){}
@@ -10466,6 +10753,10 @@ const App={
     else if(this.view==='plan') m.innerHTML=Study.vPlan();
     else if(this.view==='cards') m.innerHTML=Study.vCards();
     else if(this.view==='records') m.innerHTML=Study.vRecords();
+    else if(this.view==='wb') m.innerHTML=WB.vList();
+    else if(this.view==='wbbook') m.innerHTML=WB.vBook();
+    else if(this.view==='wbrun') m.innerHTML=WB.vRun();
+    else if(this.view==='wbresult') m.innerHTML=WB.vResult();
     else if(this.view==='pick') m.innerHTML=this.pick();
     else if(this.view==='quiz') m.innerHTML=this.quiz();
     else if(this.view==='result') m.innerHTML=this.result();
@@ -10476,13 +10767,13 @@ const App={
     this.navBar(); this.tick();
     this.syncLabel();
   },
-  NAV:[['home','今日','M4 11l8-7 8 7v9h-5v-6H9v6H4z'],['drill','1問1答','M5 5h14v14H5zM9 9h6M9 13h6M9 17h3'],['tests','試験','M7 3h10v18H7zM10 8h4M10 12h4M10 16h2'],['cards','暗記カード','M4 7h12v12H4zM8 3h12v12'],['records','記録','M4 20V10M10 20V4M16 20v-7M22 20H2']],
-  navOf(v){ return {home:'home',plan:'home',drill:'drill',pick:'drill',result:'drill',quiz:'drill',tests:'tests',exam:'tests',trend:'tests',past:'tests',cards:'cards',records:'records'}[v]||'home'; },
-  navBar(){ const el=$('#nav'); if(!el) return; const cur=this.navOf(this.view); const focus=this.view==='quiz'||(this.view==='exam'&&Exam.X&&Exam.X.phase!=='intro')||(this.view==='cards'&&Study.cs);
+  NAV:[['home','今日','M4 11l8-7 8 7v9h-5v-6H9v6H4z'],['drill','1問1答','M5 5h14v14H5zM9 9h6M9 13h6M9 17h3'],['tests','試験','M7 3h10v18H7zM10 8h4M10 12h4M10 16h2'],['wb','問題集','M4 4h7a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-7a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h7z'],['cards','暗記カード','M4 7h12v12H4zM8 3h12v12'],['records','記録','M4 20V10M10 20V4M16 20v-7M22 20H2']],
+  navOf(v){ return {home:'home',plan:'home',drill:'drill',pick:'drill',result:'drill',quiz:'drill',tests:'tests',exam:'tests',trend:'tests',past:'tests',cards:'cards',records:'records',wb:'wb',wbbook:'wb',wbrun:'wb',wbresult:'wb'}[v]||'home'; },
+  navBar(){ const el=$('#nav'); if(!el) return; const cur=this.navOf(this.view); const focus=this.view==='quiz'||this.view==='wbrun'||(this.view==='exam'&&Exam.X&&Exam.X.phase!=='intro')||(this.view==='cards'&&Study.cs);
     document.body.classList.toggle('focus',!!focus);
     el.innerHTML=this.NAV.map(([k,n,d])=>`<button data-act="nav" data-v="${k}" ${cur===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${n}</span></button>`).join(''); },
   /* 1問1答の経過時間と本試験ペース */
-  tick(){ clearInterval(this._tk); if(this.view!=='quiz'||!this.sess) return; const s=this.sess; const f=()=>{ const el=$('#qt'); if(!el){ clearInterval(this._tk); return; } const sec=Math.floor(((s.ans===null?Date.now():s.t1||Date.now())-(s.t0||Date.now()))/1000); const pace=Study.pace(Study.subjOf(s.q.item.id)); el.textContent=Study.fmtSec(sec)+(pace?` / 目安 ${Study.fmtSec(pace)}`:''); el.classList.toggle('over',!!pace&&sec>pace); if(s.ans!==null) clearInterval(this._tk); }; f(); if(s.ans===null) this._tk=setInterval(f,1000); },
+  tick(){ clearInterval(this._tk); const wb=this.view==='wbrun'&&WB.sess; if((this.view!=='quiz'||!this.sess)&&!wb) return; const s=wb?WB.sess:this.sess; const f=()=>{ const el=$('#qt'); if(!el){ clearInterval(this._tk); return; } const sec=Math.floor(((s.ans===null?Date.now():s.t1||Date.now())-(s.t0||Date.now()))/1000); const pace=wb?null:Study.pace(Study.subjOf(s.q.item.id)); el.textContent=Study.fmtSec(sec)+(pace?` / 目安 ${Study.fmtSec(pace)}`:''); el.classList.toggle('over',!!pace&&sec>pace); if(s.ans!==null) clearInterval(this._tk); }; f(); if(s.ans===null) this._tk=setInterval(f,1000); },
   lap(){ const s=this.sess; if(!s.t1) s.t1=Date.now(); return s.hintUsed?0:s.t1-(s.t0||s.t1); },
   memoBox(it){ const m=(Study.d().notes||{})[it.id]; return `<details class="memo" ${m?'open':''}><summary>まちがいノートにメモ${m?'（保存済み）':''}</summary><textarea data-note="${esc(it.id)}" placeholder="覚え方・まちがえた理由・次に気をつけることを書く（入力欄から出ると保存）" aria-label="この論点のメモ">${esc(m?m.m:'')}</textarea></details>`; },
   tests(){ return Exam.homeCard()+Trend.homeCard(); },
@@ -10639,6 +10930,7 @@ const App={
     if(Past.onClick(a,b)) return;
     if(Pred.onClick(a,b)) return;
     if(Study.onClick(a,b)) return;
+    if(WB.onClick(a,b)) return;
     if(a==='opt'){ let v=b.dataset.v; if(v==='true')v=true; else if(v==='false')v=false; else if(/^\d+$/.test(v))v=+v; o[b.dataset.k]=v; Store.save(); this.render(); }
     else if(a==='home'){ this.go('home'); }
     else if(a==='quit'){ clearInterval(this._tk); this.go((this.sess&&this.sess.from)||'drill'); }
@@ -10668,6 +10960,7 @@ const App={
   onKey(e){
     if(this.view==='exam'){ Exam.onKey(e); return; }
     if(e.target.tagName!=='TEXTAREA'&&e.target.tagName!=='INPUT'&&Study.onKey(e)) return;
+    if(WB.onKey(e)) return;
     if(this.view!=='quiz'||!this.sess) return; const s=this.sess;
     const inText=e.target.tagName==='TEXTAREA';
     if(inText){
@@ -10685,7 +10978,7 @@ const App={
 document.addEventListener('click',e=>App.onClick(e));
 document.addEventListener('keydown',e=>App.onKey(e));
 document.addEventListener('input',e=>{ if(!App.sess) return; if(e.target.id==='essay') App.sess.draft=e.target.value; if(e.target.id==='reason'){ App.sess.reason=e.target.value; if(App.sess.warn&&e.target.value.trim()){ App.sess.warn=false; const w=document.querySelector('.warn'); if(w) w.remove(); } } });
-Store.load(); App.render(); Store.connect(); AI.init(); ExtraSync.init();
+Store.load(); App.render(); Store.connect(); AI.init(); ExtraSync.init(); WB.init();
 
 </script>
 <script>
