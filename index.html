@@ -9696,6 +9696,7 @@ const ExtraSync={
 /* ============ 問題集：取り込んだ市販・予備校の問題集を，そのまま解く ============ */
 /* データ：wb/index.json（目次）と wb/<id>.json（各冊）。アプリと同じ場所に置く（claude.ai の公開ファイル／PWAのフォルダ）。
    項目：{id, type:'ox'|'calc'|'essay'|'mc', ch, sec, no, imp, tag, past, q, a(ox:1/0), ans(calc:数値), unit, dp, choices/correct(mc), model/kw(essay), ex, ref} */
+const APP_VER='2026-10-02b';
 const WB={
   index:null, books:{}, loading:{}, book:null, sess:null, filt:{imp:'ABC',only:'all',order:'seq',n:20}, err:'',
   async init(){
@@ -9729,7 +9730,7 @@ const WB={
   vList(){
     let h=`<h1 class="h1s">問題集</h1><p class="lead">取り込んだ問題集を，1問ずつそのまま解きます。○×問題は○か×を選び，計算問題は似た数値から正しい答えを6つの中から選びます。成績は1問1答と同じく記録され，まちがえた問題は「今日の復習」にも出てきます。</p>`;
     if(this.index===null) return h+'<div class="empty">問題集の目次を読み込んでいます…</div>';
-    if(!this.index.length) return h+'<div class="empty">問題集はまだありません。</div>';
+    if(!this.index.length) return h+'<div class="empty">問題集はまだありません。<br><span class="muted">（アプリの版：'+APP_VER+'）</span></div>';
     const due=this.dueIds().length; if(due) h+=`<div class="row" style="margin:6px 0 14px"><button class="btn pri" data-act="wb-due">問題集の復習（${due}問）</button></div>`;
     for(const s of ['fa','mg','law','aud','tax','keiei']){
       const L=this.index.filter(b=>b.subj===s); if(!L.length) continue;
@@ -9740,7 +9741,7 @@ const WB={
           <div class="st"><span>${b.n}問</span><span>解いた ${p.seen}問（${pct}%）</span><span>正答率 ${p.rate===null?'—':p.rate+'%'}</span></div><div class="meter"><b style="width:${pct}%"></b></div></div>`; }
       h+='</div></section>';
     }
-    return h;
+    return h+`<p class="muted" style="margin-top:18px;font-size:12px">アプリの版：${APP_VER}（問題集 ${this.index.length}冊）</p>`;
   },
   /* ---------- 1冊 ---------- */
   vBook(){
@@ -10995,7 +10996,7 @@ Store.load(); App.render(); Store.connect(); AI.init(); ExtraSync.init(); WB.ini
 
 </script>
 <script>
-if('serviceWorker' in navigator && location.protocol!=='file:'){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+if('serviceWorker' in navigator && location.protocol!=='file:'){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}); let done=false; const had=!!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(had&&!done){ done=true; location.reload(); } }); }); }
 </script>
 </body>
 </html>
